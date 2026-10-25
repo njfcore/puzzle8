@@ -16,6 +16,14 @@ class Board:
         if values != list(range(n * n)):
             raise ValueError("tiles must contain each of 0..n^2-1 exactly once")
 
+        # position of the blank square, found once
+        self._blank = next(
+            (i, j)
+            for i in range(n)
+            for j in range(n)
+            if self._tiles[i][j] == 0
+        )
+
         # cache: the board is immutable, so this value never changes
         self._manhattan = self._compute_manhattan()
             
@@ -73,3 +81,20 @@ class Board:
     def __hash__(self):
         """Needed so boards can be stored in sets and dict keys."""
         return hash(self._tiles)
+
+    def blank_pos(self):
+        """(row, col) of the blank square."""
+        return self._blank
+
+    def neighbors(self):
+        """All boards reachable with one legal move. Self is never modified."""
+        bi, bj = self._blank
+        result = []
+        # up, down, left, right (relative to the blank square)
+        for di, dj in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+            ni, nj = bi + di, bj + dj  # the tile that would slide into the blank
+            if 0 <= ni < self._n and 0 <= nj < self._n:
+                grid = [list(row) for row in self._tiles]  # mutable copy
+                grid[bi][bj], grid[ni][nj] = grid[ni][nj], 0
+                result.append(Board(grid))
+        return result
