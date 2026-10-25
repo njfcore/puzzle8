@@ -16,6 +16,9 @@ class Board:
         if values != list(range(n * n)):
             raise ValueError("tiles must contain each of 0..n^2-1 exactly once")
 
+        # cache: the board is immutable, so this value never changes
+        self._manhattan = self._compute_manhattan()
+            
     def size(self):
         """Side length of the board (3 for the 8-puzzle)."""
         return self._n
@@ -31,3 +34,42 @@ class Board:
         width = len(str(self._n ** 2 - 1))  # widest number, for alignment
         lines = [" ".join(f"{v:>{width}}" for v in row) for row in self._tiles]
         return f"{self._n}\n" + "\n".join(lines)
+
+    def hamming(self):
+        """Number of non-blank tiles that are not in their goal position."""
+        count = 0
+        for i in range(self._n):
+            for j in range(self._n):
+                v = self._tiles[i][j]
+                if v != 0 and v != i * self._n + j + 1:
+                    count += 1
+        return count
+
+    def _compute_manhattan(self):
+        """Sum of |row diff| + |col diff| from each tile to its goal cell."""
+        total = 0
+        for i in range(self._n):
+            for j in range(self._n):
+                v = self._tiles[i][j]
+                if v != 0:
+                    goal_row, goal_col = divmod(v - 1, self._n)
+                    total += abs(i - goal_row) + abs(j - goal_col)
+        return total
+
+    def manhattan(self):
+        """Cached Manhattan distance (computed once in the constructor)."""
+        return self._manhattan
+
+    def is_goal(self):
+        """True if every tile is in place (the blank is then forced to the last cell)."""
+        return self.hamming() == 0
+
+    def __eq__(self, other):
+        """Boards are equal if they have the same size and the same tiles."""
+        if not isinstance(other, Board):
+            return NotImplemented
+        return self._tiles == other._tiles
+
+    def __hash__(self):
+        """Needed so boards can be stored in sets and dict keys."""
+        return hash(self._tiles)
