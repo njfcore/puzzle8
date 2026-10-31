@@ -98,3 +98,21 @@ class Board:
                 grid[bi][bj], grid[ni][nj] = grid[ni][nj], 0
                 result.append(Board(grid))
         return result
+
+    def inversions(self):
+        """Number of pairs of tiles in row-major order where the larger comes first.
+        The blank square is ignored."""
+        flat = [v for row in self._tiles for v in row if v != 0]
+        count = 0
+        for a in range(len(flat)):
+            for b in range(a + 1, len(flat)):
+                if flat[a] > flat[b]:
+                    count += 1
+        return count
+
+    def is_solvable(self):
+        """True if the goal board can be reached from this board."""
+        inv = self.inversions()
+        if self._n % 2 == 1:
+            return inv % 2 == 0
+        return (inv + self._blank[0]) % 2 == 1
