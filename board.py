@@ -116,3 +116,80 @@ class Board:
         if self._n % 2 == 1:
             return inv % 2 == 0
         return (inv + self._blank[0]) % 2 == 1
+
+def _expect_error(error_type, func, *args):
+    """Helper for tests: func(*args) must raise error_type."""
+    try:
+        func(*args)
+    except error_type:
+        return
+    raise AssertionError(f"expected {error_type.__name__} from {func.__name__}{args}")
+
+
+def main():
+    """Direct tests of the public Board methods."""
+    b = Board([[8, 1, 3], [4, 0, 2], [7, 6, 5]])  # the example board from the PDF
+
+    # construction, size, tile_at, __str__
+    assert b.size() == 3
+    assert b.tile_at(0, 0) == 8
+    assert b.tile_at(1, 1) == 0
+    assert str(b) == "3\n8 1 3\n4 0 2\n7 6 5"
+    _expect_error(IndexError, b.tile_at, 3, 0)
+    _expect_error(IndexError, b.tile_at, 0, -1)
+
+    # invalid boards are rejected
+    _expect_error(ValueError, Board, [[1, 2], [3]])          # not square
+    _expect_error(ValueError, Board, [[1, 1], [2, 3]])       # duplicate tile
+    _expect_error(ValueError, Board, [[1, 2], [3, 4]])       # no blank, 4 out of range
+
+    # distances (values given in the PDF)
+    assert b.hamming() == 5
+    assert b.manhattan() == 10
+
+    # goal
+    goal = Board([[1, 2, 3], [4, 5, 6], [7, 8, 0]])
+    assert goal.is_goal() and goal.hamming() == 0 and goal.manhattan() == 0
+    assert not b.is_goal()
+
+    # equality and hashing
+    same = Board([[8, 1, 3], [4, 0, 2], [7, 6, 5]])
+    other = Board([[1, 8, 3], [4, 0, 2], [7, 6, 5]])
+    assert b == same and b is not same
+    assert b != other
+    assert b != "not a board"
+    assert len({b, same, other}) == 2
+
+    # neighbors: 2 in a corner, 3 on an edge, 4 in the center
+    corner = Board([[0, 1, 3], [4, 2, 5], [7, 8, 6]])
+    edge = Board([[1, 0, 3], [4, 2, 5], [7, 8, 6]])
+    center = Board([[1, 2, 3], [4, 0, 5], [7, 8, 6]])
+    assert len(corner.neighbors()) == 2
+    assert len(edge.neighbors()) == 3
+    assert len(center.neighbors()) == 4
+    expected = {
+        Board([[0, 1, 3], [4, 2, 5], [7, 8, 6]]),
+        Board([[1, 2, 3], [4, 0, 5], [7, 8, 6]]),
+        Board([[1, 3, 0], [4, 2, 5], [7, 8, 6]]),
+    }
+    assert set(edge.neighbors()) == expected
+    assert str(edge) == "3\n1 0 3\n4 2 5\n7 8 6"           # original not modified
+
+    # solvability
+    assert corner.is_solvable()                              # 4 inversions
+    assert not Board([[1, 2, 3], [4, 5, 6], [8, 7, 0]]).is_solvable()
+    assert not Board([[1, 2, 3], [0, 4, 6], [8, 5, 7]]).is_solvable()  # 3 inversions
+    assert goal.is_solvable()
+    g4 = Board([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 0]])
+    bad4 = Board([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 15, 14, 0]])
+    assert g4.is_solvable() and not bad4.is_solvable()
+    # one legal move never changes solvability
+    for board in (b, corner, edge, g4):
+        assert all(n.is_solvable() == board.is_solvable() for n in board.neighbors())
+
+    print(b)
+    print("All Board tests passed.")
+
+
+if __name__ == "__main__":
+    main()    
