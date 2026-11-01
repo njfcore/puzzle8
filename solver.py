@@ -66,7 +66,7 @@ class Solver:
         while frontier:
             node = take()
             self.expanded += 1
-            for nb in node.board.neighbors():
+            for nb in self._children(node):
                 if nb in seen:
                     continue
                 child = Node(nb, node.moves + 1, node)
@@ -75,6 +75,11 @@ class Solver:
                 seen.add(nb)
                 frontier.append(child)
         return None
+
+    def _children(self, node):
+        """Neighbors of node's board, skipping the board we just came from."""
+        prev_board = node.prev.board if node.prev else None
+        return [nb for nb in node.board.neighbors() if nb != prev_board]
 
     def _h(self, board):
         """The heuristic estimate of the remaining cost."""
