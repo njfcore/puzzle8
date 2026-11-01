@@ -14,15 +14,15 @@ class Node:
 
 class Solver:
     def __init__(self, initial, algorithm="bfs"):
-        if algorithm != "bfs":
-            raise ValueError("only 'bfs' is implemented so far")
+        if algorithm not in ("bfs", "dfs"):
+            raise ValueError("algorithm must be 'bfs' or 'dfs'")
         self.initial = initial
         self.algorithm = algorithm
         self.expanded = 0          # how many nodes we expanded (for comparing algorithms later)
         self._goal_node = None
         self._solvable = initial.is_solvable()
         if self._solvable:         # never start an expensive search on an unsolvable board
-            self._goal_node = self._bfs()
+            self._goal_node = self._uninformed()
 
     def is_solvable(self):
         return self._solvable
@@ -43,21 +43,24 @@ class Solver:
         path.reverse()                 # we built it backwards
         return path
 
-    def _bfs(self):
+    def _uninformed(self):
+        """BFS or DFS: the same code, only the end we take from differs."""
         start = Node(self.initial)
         if self.initial.is_goal():
             return start
-        frontier = deque([start])      # FIFO queue
+        frontier = deque([start])
+        # BFS: take from the front (queue). DFS: take from the back (stack).
+        take = frontier.popleft if self.algorithm == "bfs" else frontier.pop
         seen = {self.initial}
         while frontier:
-            node = frontier.popleft()  # take from the front
+            node = take()
             self.expanded += 1
             for nb in node.board.neighbors():
                 if nb in seen:
                     continue
                 child = Node(nb, node.moves + 1, node)
-                if nb.is_goal():       # first time we reach the goal is the shortest path
+                if nb.is_goal():
                     return child
                 seen.add(nb)
-                frontier.append(child) # add at the back
+                frontier.append(child)
         return None
