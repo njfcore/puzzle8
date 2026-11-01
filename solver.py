@@ -1,6 +1,10 @@
 """Solver: finds a shortest sequence of boards from an initial board to the goal."""
+import argparse
 import heapq
+import sys
 from collections import deque
+
+from board import Board
 
 
 class Node:
@@ -126,3 +130,46 @@ class Solver:
                 child = Node(nb, node.moves + 1, node, priority, g)
                 heapq.heappush(heap, (child.priority, counter, child))
         return None
+
+def build_parser():
+    parser = argparse.ArgumentParser(description="Solve the n x n sliding puzzle.")
+    parser.add_argument("file", help="input file: size n, then n rows of tiles (0 = blank)")
+    parser.add_argument("-a", "--algorithm", choices=Solver.ALGORITHMS, default="astar",
+                        help="search algorithm (default: astar)")
+    parser.add_argument("-H", "--heuristic", choices=Solver.HEURISTICS, default="manhattan",
+                        help="heuristic for A* (default: manhattan)")
+    parser.add_argument("--stats", action="store_true", help="also print expanded nodes")
+    parser.add_argument("--no-path", action="store_true", help="do not print the boards")
+    return parser
+
+
+def main(argv=None):
+    args = build_parser().parse_args(argv)
+    try:
+        board = Board.from_file(args.file)
+        solver = Solver(board, args.algorithm, args.heuristic)
+    except (OSError, ValueError) as error:
+        print(f"Error: {error}", file=sys.stderr)
+        return 1
+
+    if not solver.is_solvable():
+        print("Unsolvable puzzle")
+        return 0
+
+    if args.algorithm == "ucs":
+        print(f"Number of moves = {solver.moves()}")
+        print(f"Minimum total cost = {solver.tile_cost()}")
+    elif args.algorithm == "dfs":
+        print(f"Number of moves = {solver.moves()} (DFS: not necessarily the minimum)")
+    else:
+        print(f"Minimum number of moves = {solver.moves()}")
+    if args.stats:
+        print(f"Expanded nodes = {solver.expanded}")
+    if not args.no_path:
+        print()
+        print("\n\n".join(str(b) for b in solver.solution()))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())    
