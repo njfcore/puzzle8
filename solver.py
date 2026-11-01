@@ -4,18 +4,19 @@ from collections import deque
 
 
 class Node:
-    """A search node: a board, moves so far, where we came from, and its priority."""
-    __slots__ = ("board", "moves", "prev", "priority")
+    """A search node: a board, moves so far, where we came from, priority and cost."""
+    __slots__ = ("board", "moves", "prev", "priority", "cost")
 
-    def __init__(self, board, moves=0, prev=None, priority=0):
+    def __init__(self, board, moves=0, prev=None, priority=0, cost=0):
         self.board = board
         self.moves = moves
         self.prev = prev
         self.priority = priority
+        self.cost = cost
 
 
 class Solver:
-    ALGORITHMS = ("bfs", "dfs", "astar")
+    ALGORITHMS = ("bfs", "dfs", "astar", "ucs")
     HEURISTICS = ("manhattan", "hamming")
 
     def __init__(self, initial, algorithm="bfs", heuristic="manhattan"):
@@ -30,11 +31,10 @@ class Solver:
         self._goal_node = None
         self._solvable = initial.is_solvable()
         if self._solvable:
-            if algorithm == "astar":
-                self._goal_node = self._astar()
+            if algorithm in ("ucs", "astar"):
+                self._goal_node = self._best_first()
             else:
                 self._goal_node = self._uninformed()
-
     def is_solvable(self):
         return self._solvable
 
@@ -82,26 +82,42 @@ class Solver:
             return board.manhattan()
         return board.hamming()
 
-    def _astar(self):
-        counter = 0                       # tie-breaker: older nodes first
-        start = Node(self.initial, 0, None, self._h(self.initial))
+    def tile_cost(self):
+        """Sum of the numbers of the tiles moved along the solution (the UCS cost)."""
+        path = self.solution()
+        if path is None:
+            return -1
+        # the tile that moved is the one that used to sit where the new blank is
+        return sum(a.tile_at(*b.blank_pos()) for a, b in zip(path, path[1:]))
+
+    def _best_first(self):
+        """UCS: priority = g.  A*: priority = g + h.  Everything else is shared."""
+        use_h = self.algorithm == "astar"
+        counter = 0
+        h0 = self._h(self.initial) if use_h else 0
+        start = Node(self.initial, 0, None, h0, 0)
         heap = [(start.priority, counter, start)]
-        best_g = {self.initial: 0}        # cheapest g known for each board
-        closed = set()                    # boards we have fully expanded
+        best_g = {self.initial: 0}
+        closed = set()
         while heap:
-            _, _, node = heapq.heappop(heap)      # smallest f = g + h
-            if node.board in closed:              # stale duplicate, skip
+            _, _, node = heapq.heappop(heap)
+            if node.board in closed:
                 continue
-            if node.board.is_goal():              # test when POPPED, not when created
+            if node.board.is_goal():              # test when popped
                 return node
             closed.add(node.board)
             self.expanded += 1
-            g = node.moves + 1                    # cost of every child
             for nb in node.board.neighbors():
-                if nb in closed or g >= best_g.get(nb, float("inf")):
-                    continue                      # not better than what we have
+                if nb in closed:
+                    continue
+                moved = node.board.tile_at(*nb.blank_pos())
+                step = moved if self.algorithm == "ucs" else 1   # cost of this move
+                g = node.cost + step
+                if g >= best_g.get(nb, float("inf")):
+                    continue
                 best_g[nb] = g
                 counter += 1
-                child = Node(nb, g, node, g + self._h(nb))
+                priority = g + (self._h(nb) if use_h else 0)
+                child = Node(nb, node.moves + 1, node, priority, g)
                 heapq.heappush(heap, (child.priority, counter, child))
         return None
