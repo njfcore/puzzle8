@@ -1,6 +1,7 @@
 """Board: representation of an n x n sliding puzzle board."""
 
-
+# lets the program also read files typed with Persian digits (copied from the PDF)
+_PERSIAN_DIGITS = str.maketrans("??????????", "0123456789")
 class Board:
     def __init__(self, tiles):
         """Build a board from a 2D list of tiles. 0 means the blank square."""
@@ -81,6 +82,20 @@ class Board:
     def __hash__(self):
         """Needed so boards can be stored in sets and dict keys."""
         return hash(self._tiles)
+
+    @staticmethod
+    def from_file(path):
+        """Read a board: first the size n, then n rows of n numbers (0 = blank)."""
+        with open(path, encoding="utf-8-sig") as f:   # utf-8-sig skips the Notepad BOM
+            text = f.read().translate(_PERSIAN_DIGITS)
+        numbers = [int(x) for x in text.split()]
+        if not numbers:
+            raise ValueError("the input file is empty")
+        n = numbers[0]
+        if n < 2 or len(numbers) != 1 + n * n:
+            raise ValueError(f"expected the size {n} followed by {n * n} numbers, "
+                             f"found {len(numbers) - 1} numbers")
+        return Board([numbers[1 + i * n: 1 + (i + 1) * n] for i in range(n)])
 
     def blank_pos(self):
         """(row, col) of the blank square."""
